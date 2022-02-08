@@ -51,3 +51,5 @@ mySwitch.toggle()
 mySwitch.toggle()
 mySwitch.toggle()
 mySwitch.subject.send(.off)
+
+//: [Next](@next)
