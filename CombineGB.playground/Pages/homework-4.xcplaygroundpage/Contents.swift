@@ -30,6 +30,27 @@ struct NationalizeResponse: Codable {
     }
 }
 
+// Таймлоггер из методички для отладки
+class TimeLogger: TextOutputStream {
+    
+    private var previous = Date()
+    private let formatter = NumberFormatter()
+    
+    init() {
+        formatter.maximumFractionDigits = 5
+        formatter.minimumFractionDigits = 5
+    }
+    
+    func write(_ string: String) {
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let now = Date()
+        print("+\(formatter.string(for: now.timeIntervalSince(previous))!)s: \(string)")
+        previous = now
+    }
+}
+
+
 //1. Написать простейший клиент, который обращается к любому открытому API, используя Combine в запросах. (Минимальное количество методов API: 2).
 //2. Реализовать отладку любых двух издателей в коде.
 class NameApi {
@@ -48,8 +69,11 @@ class NameApi {
     
     func fetch() {
         let publisher = Publishers.Zip(fetchGender(), fetchNation())
-        publisher.sink { value in
-
+        
+        publisher
+        // Закомментируйте следующую строку чтобы убрать отладочную информацию.
+            .print("publisher", to: TimeLogger())
+            .sink { value in
             let gender = value.0.gender == "male" ? "👨🏻 (мужской)" : "👩🏻 (женский)"
             
             print("Имя: \(self.name)")
@@ -91,14 +115,14 @@ class NameApi {
         return countryCode.uppercased().unicodeScalars.map { String(UnicodeScalar(base + $0.value)!) }.joined()
     }
     
-    // Преобразует код страны в наименование этой страны в текущей локали.
+    // Преобразует код страны в название этой страны в текущей локали.
     private func countryName(from countryCode: String) -> String? {
         return (Locale.current as NSLocale).displayName(forKey: .countryCode, value: countryCode)
     }
 }
 
 // Паблишер, испускающий строки с именами, гражданство и пол которых мы будем предсказывать с помощью открытого API.
-let namesPublisher = ["Yaroslav", "Vyacheslav", "Slava", "Meruert", "Fatma", "Ana", "Anna", "Cthulhu", "Lenin", "Stalin", "Pedro", "Dazdraperma", "Kumar", "Motherfucker", "Ringo", "George"].publisher
+let namesPublisher = ["Yaroslav", "Vyacheslav", "Slava", "Meruert", "Fatma", "Anna", "Cthulhu", "Lenin", "Pedro", "Dazdraperma", "Kumar", "Motherfucker", "Jah"].publisher
 
 // Подписываемся и обращаемся к двум различным API для определения пола и гражданства.
 namesPublisher
