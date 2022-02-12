@@ -5,9 +5,6 @@ import Combine
 
 var cancellables = Set<AnyCancellable>()
 
-// Паблишер, испускающий строки с именами.
-let namesPublisher = ["Yaroslav", "Vyacheslav"].publisher
-
 // Структура ответа Genderize.io
 // Имя, пол, вероятность, количество записей в БД.
 struct GenderizeResponse: Codable {
@@ -35,7 +32,7 @@ struct NationalizeResponse: Codable {
 
 //1. Написать простейший клиент, который обращается к любому открытому API, используя Combine в запросах. (Минимальное количество методов API: 2).
 //2. Реализовать отладку любых двух издателей в коде.
-class NameAPI {
+class NameApi {
     var cancellables = Set<AnyCancellable>()
     
     // Имя, по которому будет возвращаться гражданство и пол человека.
@@ -52,7 +49,18 @@ class NameAPI {
     func fetch() {
         let publisher = Publishers.Zip(fetchGender(), fetchNation())
         publisher.sink { value in
-            print(value.1.country![0].countryId)
+
+            let gender = value.0.gender == "male" ? "👨🏻 (мужской)" : "👩🏻 (женский)"
+            
+            print("Имя: \(self.name)")
+            print("Пол: \(gender) с вероятностью \(value.0.probability * 100) % на основании \(value.0.count) записей в БД.")
+            
+            if let countries = value.1.country {
+                for country in countries {
+                    print("\(self.flagEmoji(from: country.countryId)) \(self.countryName(from: country.countryId) ?? "Н/Д") с вероятностью \((country.probability * 100).rounded()) %.")
+                }
+            }
+            print("\n\n")
         }
         .store(in: &cancellables)
     }
@@ -76,11 +84,25 @@ class NameAPI {
             .replaceError(with: GenderizeResponse(name: "", gender: "", probability: 0, count: 0))
             .eraseToAnyPublisher()
     }
+    
+    // Преобразует код страны в эмодзи флага этой страны.
+    private func flagEmoji(from countryCode: String) -> String {
+        let base: UInt32 = 127397
+        return countryCode.uppercased().unicodeScalars.map { String(UnicodeScalar(base + $0.value)!) }.joined()
+    }
+    
+    // Преобразует код страны в наименование этой страны в текущей локали.
+    private func countryName(from countryCode: String) -> String? {
+        return (Locale.current as NSLocale).displayName(forKey: .countryCode, value: countryCode)
+    }
 }
 
-let nameAPI = NameAPI("Yaroslav")
-nameAPI.fetch()
+// Паблишер, испускающий строки с именами, гражданство и пол которых мы будем предсказывать с помощью открытого API.
+let namesPublisher = ["Yaroslav", "Vyacheslav", "Slava", "Meruert", "Fatma", "Ana", "Anna", "Cthulhu", "Lenin", "Stalin", "Pedro", "Dazdraperma", "Kumar", "Motherfucker", "Ringo", "George"].publisher
 
-//nameAPI.fetchGender().sink { value in print(value.gender) }.store(in: &cancellables)
+// Подписываемся и обращаемся к двум различным API для определения пола и гражданства.
+namesPublisher
+    .sink { value in NameApi(value).fetch() }
+    .store(in: &cancellables)
 
 //: [Next](@next)
