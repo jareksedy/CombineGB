@@ -101,9 +101,10 @@ class NameApi {
         let url = URL(string: baseUrlNationalizeApi + name)!
         
         return URLSession.shared.dataTaskPublisher(for: url)
+            .mapError { error -> MyError in return MyError.fetchingError }
             .map { $0.data }
             .decode(type: NationalizeResponse.self, decoder: JSONDecoder())
-            .mapError { error -> MyError in return MyError.fetchingError }
+            .mapError { error -> MyError in return MyError.decodingError }
             //.replaceError(with: MyError.fetchingError)
             .eraseToAnyPublisher()
     }
